@@ -1,41 +1,14 @@
-###########
-# Builder #
-###########
-FROM node:20-alpine AS builder
+FROM n8nio/n8n:latest
 
-WORKDIR /usr/src/app
+# Set working directory
+WORKDIR /home/node
 
-# Install build dependencies
-COPY package*.json ./
-RUN npm ci
+# Expose port
+EXPOSE 5678
 
-# Copy source
-COPY . .
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:5678/healthz || exit 1
 
-# Build
-RUN npm run build
-
-###############
-# Production  #
-###############
-FROM node:20-alpine AS production
-
-ENV NODE_ENV=production \
-    PORT=3008 \
-    NATS_SERVERS=nats://nats:4222 \
-    NATS_QUEUE=files_queue
-
-WORKDIR /usr/src/app
-
-# Install only production deps
-COPY package*.json ./
-RUN npm ci --omit=dev
-
-# Copy built dist and any runtime assets needed
-COPY --from=builder /usr/src/app/dist ./dist
-
-# Expose HTTP port
-EXPOSE 3008
-
-# Run
-CMD ["npm", "run", "start:prod"]
+# Start n8n
+CMD ["n8n", "start"]
